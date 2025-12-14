@@ -333,7 +333,7 @@ def init_templates(path: str, with_examples: bool) -> None:
 
 def _create_example_templates(directory: Path) -> None:
     """Create example templates in a directory."""
-    examples = [
+    examples: list[dict[str, Any]] = [
         {
             "filename": "summarizer.yaml",
             "content": {

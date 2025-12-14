@@ -1,5 +1,6 @@
 """Template validation utilities."""
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -141,7 +142,7 @@ class TemplateValidator:
         def is_float(v: Any) -> bool:
             return isinstance(v, (int, float)) and not isinstance(v, bool)
 
-        type_checks = {
+        type_checks: dict[VariableType, Callable[[Any], bool]] = {
             VariableType.STRING: lambda v: isinstance(v, str),
             VariableType.INTEGER: is_int,
             VariableType.FLOAT: is_float,

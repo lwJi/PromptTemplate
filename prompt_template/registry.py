@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import builtins
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from difflib import get_close_matches
@@ -139,7 +140,7 @@ class TemplateRegistry:
 
         return Template.from_file(path)
 
-    def list(self) -> list[TemplateInfo]:
+    def list(self) -> builtins.list[TemplateInfo]:
         """List all available templates.
 
         Returns:
@@ -217,8 +218,8 @@ class TemplateRegistry:
     def search(
         self,
         query: str | None = None,
-        tags: list[str] | None = None,
-    ) -> list[TemplateInfo]:
+        tags: builtins.list[str] | None = None,
+    ) -> builtins.list[TemplateInfo]:
         """Search for templates by name/description or tags.
 
         Args:
@@ -260,7 +261,7 @@ class TemplateRegistry:
         """
         return self.find(name) is not None
 
-    def get_search_paths_status(self) -> list[dict[str, str | bool]]:
+    def get_search_paths_status(self) -> builtins.list[dict[str, str | bool]]:
         """Get status of all search paths.
 
         Returns:
