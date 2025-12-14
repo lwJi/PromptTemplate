@@ -1,6 +1,7 @@
 """Command-line interface for prompt template tool."""
 
 import glob
+import json
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +17,21 @@ from .registry import TemplateRegistry
 from .template import Template, TemplateError
 
 console = Console()
+
+
+def handle_template_error(e: TemplateError) -> None:
+    """Display template error and exit.
+
+    Args:
+        e: The TemplateError to display
+
+    Raises:
+        SystemExit: Always exits with code 1
+    """
+    console.print(f"[red]Error:[/red] {e.message}")
+    if e.suggestion:
+        console.print(f"[yellow]Suggestion:[/yellow] {e.suggestion}")
+    raise SystemExit(1)
 
 
 def load_file_content(file_path: str) -> str:
@@ -139,7 +155,6 @@ def list_templates(
         return
 
     if as_json:
-        import json
         data = [
             {
                 "name": t.name,
@@ -194,10 +209,7 @@ def show_template(name: str, raw: bool, preview: bool) -> None:
     try:
         template = registry.load(name)
     except TemplateError as e:
-        console.print(f"[red]Error:[/red] {e.message}")
-        if e.suggestion:
-            console.print(f"[yellow]Suggestion:[/yellow] {e.suggestion}")
-        raise SystemExit(1)
+        handle_template_error(e)
 
     if raw:
         content = template.config.model_dump(by_alias=True, exclude_none=True)
@@ -299,17 +311,13 @@ def run_template(
     try:
         template = registry.load(name)
     except TemplateError as e:
-        console.print(f"[red]Error:[/red] {e.message}")
-        if e.suggestion:
-            console.print(f"[yellow]Suggestion:[/yellow] {e.suggestion}")
-        raise SystemExit(1)
+        handle_template_error(e)
 
     # Collect variables
     variables: dict[str, Any] = {}
 
     # From JSON file
     if json_input:
-        import json
         try:
             variables.update(json.load(json_input))
         except json.JSONDecodeError as e:
@@ -361,10 +369,7 @@ def run_template(
         if template.has_split_prompts:
             system_rendered, user_rendered = template.render_split(**variables)
     except TemplateError as e:
-        console.print(f"[red]Error:[/red] {e.message}")
-        if e.suggestion:
-            console.print(f"[yellow]Suggestion:[/yellow] {e.suggestion}")
-        raise SystemExit(1)
+        handle_template_error(e)
 
     # Format output
     if output_format == "panel":
@@ -438,10 +443,7 @@ def validate_template(file: str) -> None:
             raise SystemExit(1)
 
     except TemplateError as e:
-        console.print(f"[red]Error:[/red] {e.message}")
-        if e.suggestion:
-            console.print(f"[yellow]Suggestion:[/yellow] {e.suggestion}")
-        raise SystemExit(1)
+        handle_template_error(e)
 
 
 @cli.command("init")

@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from jinja2 import TemplateSyntaxError, UndefinedError
 from pydantic import ValidationError
 
 from .models import TemplateConfig, VariableConfig
@@ -212,40 +213,21 @@ class Template:
         Raises:
             TemplateRenderError: If rendering fails
         """
-        # Apply defaults for missing optional variables
-        merged_vars = self._apply_defaults(variables)
+        merged_vars = self._validate_and_prepare(variables)
 
-        # Validate inputs
-        validation = self._validator.validate_inputs(self.config, merged_vars)
-        if not validation.is_valid:
-            raise TemplateRenderError(
-                "Invalid input values:\n  " + "\n  ".join(validation.errors),
-                context={"provided_vars": list(variables.keys())},
-            )
-
-        try:
-            # If using split prompts, combine them
-            if self.has_split_prompts:
-                parts = []
-                if self.config.system_prompt:
-                    rendered = self._renderer.render(
-                        self.config.system_prompt, merged_vars
-                    )
-                    parts.append(rendered)
-                if self.config.user_prompt:
-                    rendered = self._renderer.render(
-                        self.config.user_prompt, merged_vars
-                    )
-                    parts.append(rendered)
-                return "\n\n".join(parts)
-            else:
-                return self._renderer.render(self.config.template, merged_vars)
-        except Exception as e:
-            raise TemplateRenderError(
-                f"Failed to render template: {e}",
-                suggestion="Check that all required variables are provided",
-                context={"variables": list(merged_vars.keys())},
-            )
+        if self.has_split_prompts:
+            parts = []
+            if self.config.system_prompt:
+                parts.append(
+                    self._render_template_string(self.config.system_prompt, merged_vars)
+                )
+            if self.config.user_prompt:
+                parts.append(
+                    self._render_template_string(self.config.user_prompt, merged_vars)
+                )
+            return "\n\n".join(parts)
+        else:
+            return self._render_template_string(self.config.template, merged_vars)
 
     def render_split(self, **variables: Any) -> tuple[str | None, str | None]:
         """Render system and user prompts separately.
@@ -259,35 +241,21 @@ class Template:
         Raises:
             TemplateRenderError: If rendering fails
         """
-        merged_vars = self._apply_defaults(variables)
+        merged_vars = self._validate_and_prepare(variables)
 
-        validation = self._validator.validate_inputs(self.config, merged_vars)
-        if not validation.is_valid:
-            raise TemplateRenderError(
-                "Invalid input values:\n  " + "\n  ".join(validation.errors),
-                context={"provided_vars": list(variables.keys())},
+        system_rendered = None
+        user_rendered = None
+
+        if self.config.system_prompt:
+            system_rendered = self._render_template_string(
+                self.config.system_prompt, merged_vars
+            )
+        if self.config.user_prompt:
+            user_rendered = self._render_template_string(
+                self.config.user_prompt, merged_vars
             )
 
-        try:
-            system_rendered = None
-            user_rendered = None
-
-            if self.config.system_prompt:
-                system_rendered = self._renderer.render(
-                    self.config.system_prompt, merged_vars
-                )
-            if self.config.user_prompt:
-                user_rendered = self._renderer.render(
-                    self.config.user_prompt, merged_vars
-                )
-
-            return system_rendered, user_rendered
-        except Exception as e:
-            raise TemplateRenderError(
-                f"Failed to render template: {e}",
-                suggestion="Check that all required variables are provided",
-                context={"variables": list(merged_vars.keys())},
-            )
+        return system_rendered, user_rendered
 
     @property
     def has_split_prompts(self) -> bool:
@@ -310,6 +278,65 @@ class Template:
                 merged[var.name] = var.default
 
         return merged
+
+    def _validate_and_prepare(self, variables: dict[str, Any]) -> dict[str, Any]:
+        """Apply defaults and validate inputs.
+
+        Args:
+            variables: Provided variable values
+
+        Returns:
+            Variables with defaults applied
+
+        Raises:
+            TemplateRenderError: If validation fails
+        """
+        merged_vars = self._apply_defaults(variables)
+
+        validation = self._validator.validate_inputs(self.config, merged_vars)
+        if not validation.is_valid:
+            raise TemplateRenderError(
+                "Invalid input values:\n  " + "\n  ".join(validation.errors),
+                context={"provided_vars": list(variables.keys())},
+            )
+
+        return merged_vars
+
+    def _render_template_string(
+        self, template_string: str, variables: dict[str, Any]
+    ) -> str:
+        """Render a single template string with error handling.
+
+        Args:
+            template_string: The Jinja2 template string
+            variables: Variables to use for rendering
+
+        Returns:
+            Rendered string
+
+        Raises:
+            TemplateRenderError: If rendering fails
+        """
+        try:
+            return self._renderer.render(template_string, variables)
+        except TemplateSyntaxError as e:
+            raise TemplateRenderError(
+                f"Template syntax error: {e.message}",
+                suggestion="Check template syntax for Jinja2 errors",
+                context={"variables": list(variables.keys()), "line": e.lineno},
+            )
+        except UndefinedError as e:
+            raise TemplateRenderError(
+                f"Undefined variable in template: {e}",
+                suggestion="Check that all required variables are provided",
+                context={"variables": list(variables.keys())},
+            )
+        except Exception as e:
+            raise TemplateRenderError(
+                f"Failed to render template: {e}",
+                suggestion="Check that all required variables are provided",
+                context={"variables": list(variables.keys())},
+            )
 
     def preview(self, **variables: Any) -> str:
         """Preview the template with optional variables.
@@ -351,13 +378,9 @@ class Template:
         """Get names of required variables without defaults.
 
         Returns:
-            List of required variable names
+            List of variable names that must be provided by the user.
         """
-        return [
-            v.name
-            for v in self.config.variables
-            if v.required and v.default is None
-        ]
+        return [v.name for v in self.config.get_must_provide_variables()]
 
     def get_all_variables(self) -> set[str]:
         """Get all variable names used in the template.

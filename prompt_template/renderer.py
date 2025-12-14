@@ -6,6 +6,7 @@ from typing import Any
 from jinja2 import (
     StrictUndefined,
     TemplateSyntaxError,
+    UndefinedError,
     meta,
 )
 from jinja2.sandbox import SandboxedEnvironment
@@ -144,5 +145,9 @@ class TemplateRenderer:
             lenient_env = SandboxedEnvironment(autoescape=False)
             template = lenient_env.from_string(template_string)
             return template.render(**preview_vars)
+        except TemplateSyntaxError as e:
+            return f"Preview error (syntax): {e.message}"
+        except UndefinedError as e:
+            return f"Preview error (undefined variable): {e}"
         except Exception as e:
             return f"Preview error: {e}"

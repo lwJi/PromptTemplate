@@ -259,9 +259,9 @@ class TemplateValidator:
         """
         result = ValidationResult(is_valid=True)
 
-        # Check required variables are provided
-        for var in config.get_required_variables():
-            if var.name not in inputs and var.default is None:
+        # Check required variables are provided (required=True AND no default)
+        for var in config.get_must_provide_variables():
+            if var.name not in inputs:
                 result.add_error(f"Missing required variable: '{var.name}'")
 
         # Validate provided values

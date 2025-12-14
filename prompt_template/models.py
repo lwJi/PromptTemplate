@@ -27,7 +27,7 @@ class VariableConfig(BaseModel):
     required: bool = Field(default=True, description="Whether variable is required")
     default: Any = Field(default=None, description="Default value if not provided")
     description: str = Field(default="", description="Variable description")
-    enum: list[str] | None = Field(
+    enum: list[Any] | None = Field(
         default=None, description="Allowed values for the variable"
     )
 
@@ -133,9 +133,21 @@ class TemplateConfig(BaseModel):
                 return var
         return None
 
-    def get_required_variables(self) -> list[VariableConfig]:
-        """Get all required variables."""
+    def get_declared_required_variables(self) -> list[VariableConfig]:
+        """Get all variables marked as required (regardless of defaults).
+
+        Note: Use get_must_provide_variables() to get variables that users
+        must actually provide values for.
+        """
         return [v for v in self.variables if v.required]
+
+    def get_must_provide_variables(self) -> list[VariableConfig]:
+        """Get variables that must be provided by the user.
+
+        Returns variables that are required AND have no default value.
+        These are the variables that will cause validation errors if not provided.
+        """
+        return [v for v in self.variables if v.required and v.default is None]
 
     def get_optional_variables(self) -> list[VariableConfig]:
         """Get all optional variables."""

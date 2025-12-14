@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import builtins
+import logging
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from difflib import get_close_matches
 from pathlib import Path
 
-from .template import Template, TemplateNotFoundError
+from .template import Template, TemplateNotFoundError, TemplateValidationError
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -94,11 +97,14 @@ class TemplateRegistry:
                     return candidate
 
                 # Also check subdirectories
-                for subdir in base_path.iterdir():
-                    if subdir.is_dir():
-                        candidate = subdir / f"{name}{ext}"
-                        if candidate.exists():
-                            return candidate
+                try:
+                    for subdir in base_path.iterdir():
+                        if subdir.is_dir():
+                            candidate = subdir / f"{name}{ext}"
+                            if candidate.exists():
+                                return candidate
+                except PermissionError:
+                    continue  # Skip directories we cannot read
 
         # If not found by file name, search by template name (inside YAML)
         for info in self._discover_templates():
@@ -211,8 +217,13 @@ class TemplateRegistry:
                 version=template.config.version,
                 tags=template.config.tags,
             )
-        except Exception:
-            # Skip invalid template files
+        except (TemplateValidationError, TemplateNotFoundError) as e:
+            # Expected errors for invalid templates - log at debug level
+            logger.debug("Skipping invalid template %s: %s", path, e)
+            return None
+        except Exception as e:
+            # Unexpected errors - log at warning level for visibility
+            logger.warning("Unexpected error reading template %s: %s", path, e)
             return None
 
     def search(
