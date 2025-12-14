@@ -35,6 +35,12 @@ prompt show summarizer
 # Run a template
 prompt run summarizer -v "text=Your text here" -v "style=bullet-points"
 
+# Load variable from file using @ prefix
+prompt run code-reviewer -v "code=@./src/main.py" -v "language=python"
+
+# Load multiple files using glob patterns
+prompt run code-reviewer -v "code=@./src/*.py"
+
 # Interactive mode
 prompt run summarizer -i
 ```
@@ -76,6 +82,23 @@ template: |
 | `prompt validate <file>` | Validate a template file |
 | `prompt init` | Initialize templates directory |
 | `prompt new <name>` | Create a new template |
+
+## File Input
+
+Load file contents as variable values using the `@` prefix:
+
+```bash
+# Single file
+prompt run template -v "content=@./file.txt"
+
+# Glob pattern (multiple files)
+prompt run template -v "code=@./src/*.py"
+
+# Recursive glob
+prompt run template -v "code=@./src/**/*.py"
+```
+
+When multiple files match a glob pattern, they are concatenated with `# File: <path>` headers.
 
 ## Python API
 

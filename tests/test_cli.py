@@ -285,3 +285,201 @@ variables:
 
             assert result.exit_code == 1
             assert "json" in result.output.lower() or "parse" in result.output.lower()
+
+
+class TestFileInput:
+    """Tests for file input with @ prefix."""
+
+    @pytest.fixture
+    def runner(self):
+        """Create a CLI runner."""
+        return CliRunner()
+
+    def test_file_input_single(self, runner):
+        """Test loading single file with @ prefix."""
+        with runner.isolated_filesystem():
+            # Create template
+            Path("templates").mkdir()
+            Path("templates/echo.yaml").write_text("""
+name: echo
+template: "Content: {{text}}"
+variables:
+  - name: text
+    type: string
+    required: true
+""")
+            # Create test file
+            Path("input.txt").write_text("Hello from file!")
+
+            result = runner.invoke(cli, ["run", "echo", "-v", "text=@input.txt"])
+
+            assert result.exit_code == 0
+            assert "Hello from file!" in result.output
+
+    def test_file_input_glob_single_match(self, runner):
+        """Test glob pattern matching single file."""
+        with runner.isolated_filesystem():
+            Path("templates").mkdir()
+            Path("templates/echo.yaml").write_text("""
+name: echo
+template: "{{content}}"
+variables:
+  - name: content
+    type: string
+    required: true
+""")
+            Path("src").mkdir()
+            Path("src/main.py").write_text("print('hello')")
+
+            result = runner.invoke(cli, ["run", "echo", "-v", "content=@src/*.py"])
+
+            assert result.exit_code == 0
+            assert "print('hello')" in result.output
+
+    def test_file_input_glob_multiple_files(self, runner):
+        """Test glob pattern matching multiple files."""
+        with runner.isolated_filesystem():
+            Path("templates").mkdir()
+            Path("templates/echo.yaml").write_text("""
+name: echo
+template: "Files:\\n{{files}}"
+variables:
+  - name: files
+    type: string
+    required: true
+""")
+            Path("src").mkdir()
+            Path("src/a.py").write_text("# file a")
+            Path("src/b.py").write_text("# file b")
+
+            result = runner.invoke(cli, ["run", "echo", "-v", "files=@src/*.py"])
+
+            assert result.exit_code == 0
+            assert "# file a" in result.output
+            assert "# file b" in result.output
+            assert "# File:" in result.output  # Header for multiple files
+
+    def test_file_input_recursive_glob(self, runner):
+        """Test recursive glob pattern."""
+        with runner.isolated_filesystem():
+            Path("templates").mkdir()
+            Path("templates/echo.yaml").write_text("""
+name: echo
+template: "{{content}}"
+variables:
+  - name: content
+    type: string
+    required: true
+""")
+            Path("src/sub").mkdir(parents=True)
+            Path("src/main.py").write_text("# root")
+            Path("src/sub/util.py").write_text("# nested")
+
+            result = runner.invoke(cli, ["run", "echo", "-v", "content=@src/**/*.py"])
+
+            assert result.exit_code == 0
+            assert "# root" in result.output
+            assert "# nested" in result.output
+
+    def test_file_not_found(self, runner):
+        """Test error when file doesn't exist."""
+        with runner.isolated_filesystem():
+            Path("templates").mkdir()
+            Path("templates/echo.yaml").write_text("""
+name: echo
+template: "{{text}}"
+variables:
+  - name: text
+    type: string
+    required: true
+""")
+
+            result = runner.invoke(cli, ["run", "echo", "-v", "text=@nonexistent.txt"])
+
+            assert result.exit_code != 0
+            assert "File not found" in result.output
+
+    def test_glob_no_matches(self, runner):
+        """Test error when glob pattern matches no files."""
+        with runner.isolated_filesystem():
+            Path("templates").mkdir()
+            Path("templates/echo.yaml").write_text("""
+name: echo
+template: "{{text}}"
+variables:
+  - name: text
+    type: string
+    required: true
+""")
+            Path("src").mkdir()
+
+            result = runner.invoke(cli, ["run", "echo", "-v", "text=@src/*.xyz"])
+
+            assert result.exit_code != 0
+            assert "No files match pattern" in result.output
+
+    def test_file_input_with_equals_in_content(self, runner):
+        """Test file content containing equals signs."""
+        with runner.isolated_filesystem():
+            Path("templates").mkdir()
+            Path("templates/echo.yaml").write_text("""
+name: echo
+template: "{{content}}"
+variables:
+  - name: content
+    type: string
+    required: true
+""")
+            Path("config.txt").write_text("key=value\nfoo=bar")
+
+            result = runner.invoke(cli, ["run", "echo", "-v", "content=@config.txt"])
+
+            assert result.exit_code == 0
+            assert "key=value" in result.output
+            assert "foo=bar" in result.output
+
+    def test_file_input_mixed_with_literal(self, runner):
+        """Test mixing file input with literal values."""
+        with runner.isolated_filesystem():
+            Path("templates").mkdir()
+            Path("templates/review.yaml").write_text("""
+name: review
+template: "Language: {{lang}}\\nCode:\\n{{code}}"
+variables:
+  - name: code
+    type: string
+    required: true
+  - name: lang
+    type: string
+    required: true
+""")
+            Path("main.py").write_text("print('hello')")
+
+            result = runner.invoke(cli, [
+                "run", "review",
+                "-v", "code=@main.py",
+                "-v", "lang=python"
+            ])
+
+            assert result.exit_code == 0
+            assert "Language: python" in result.output
+            assert "print('hello')" in result.output
+
+    def test_literal_at_sign(self, runner):
+        """Test that @ at beginning triggers file load, not in middle."""
+        with runner.isolated_filesystem():
+            Path("templates").mkdir()
+            Path("templates/echo.yaml").write_text("""
+name: echo
+template: "{{text}}"
+variables:
+  - name: text
+    type: string
+    required: true
+""")
+
+            # Email address should be passed literally (@ not at start after =)
+            result = runner.invoke(cli, ["run", "echo", "-v", "text=user@example.com"])
+
+            assert result.exit_code == 0
+            assert "user@example.com" in result.output

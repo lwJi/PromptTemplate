@@ -1,5 +1,6 @@
 """Command-line interface for prompt template tool."""
 
+import glob
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +15,75 @@ from .registry import TemplateRegistry
 from .template import Template, TemplateError
 
 console = Console()
+
+
+def load_file_content(file_path: str) -> str:
+    """Load single file content with error handling.
+
+    Args:
+        file_path: Path to the file to load.
+
+    Returns:
+        File content as string.
+
+    Raises:
+        click.ClickException: If file cannot be read.
+    """
+    path = Path(file_path).expanduser().resolve()
+    if not path.exists():
+        raise click.ClickException(f"File not found: {file_path}")
+    if not path.is_file():
+        raise click.ClickException(f"Not a file: {file_path}")
+    try:
+        return path.read_text(encoding="utf-8")
+    except PermissionError:
+        raise click.ClickException(f"Permission denied: {file_path}")
+    except UnicodeDecodeError:
+        raise click.ClickException(f"Cannot read file (encoding error): {file_path}")
+
+
+def load_files_content(pattern: str) -> str:
+    """Load file(s) matching a path or glob pattern.
+
+    For single files, returns the file content directly.
+    For glob patterns matching multiple files, concatenates contents with headers.
+
+    Args:
+        pattern: File path or glob pattern (e.g., "*.py", "src/**/*.py").
+
+    Returns:
+        File content(s) as string.
+
+    Raises:
+        click.ClickException: If no files match or files cannot be read.
+    """
+    expanded = str(Path(pattern).expanduser())
+
+    # Check if it's a glob pattern
+    if any(c in pattern for c in "*?[]"):
+        files = sorted(glob.glob(expanded, recursive=True))
+        if not files:
+            raise click.ClickException(f"No files match pattern: {pattern}")
+
+        # Filter to only include actual files (not directories)
+        files = [f for f in files if Path(f).is_file()]
+        if not files:
+            raise click.ClickException(f"No files match pattern: {pattern}")
+
+        # Single file match - return content directly
+        if len(files) == 1:
+            return load_file_content(files[0])
+
+        # Multiple files - concatenate with headers
+        contents = []
+        for file_path in files:
+            content = load_file_content(file_path)
+            contents.append(f"# File: {file_path}\n{content}")
+
+        return "\n\n".join(contents)
+    else:
+        # Single file path
+        return load_file_content(pattern)
 
 
 def get_registry() -> TemplateRegistry:
@@ -224,9 +294,15 @@ def run_template(
     for v in var:
         if "=" not in v:
             console.print(f"[red]Invalid variable format:[/red] {v}")
-            console.print("Use format: --var key=value")
+            console.print("Use format: --var key=value or --var key=@file.txt")
             raise SystemExit(1)
         key, value = v.split("=", 1)
+
+        # @ prefix: load file content
+        if value.startswith("@"):
+            file_pattern = value[1:]  # Remove @ prefix
+            value = load_files_content(file_pattern)
+
         variables[key] = value
 
     # Interactive mode - prompt for missing required variables

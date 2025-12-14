@@ -20,6 +20,8 @@ mypy prompt_template --ignore-missing-imports
 prompt list
 prompt show <name>
 prompt run <name> -v "var=value"
+prompt run <name> -v "var=@file.txt"      # Load from file
+prompt run <name> -v "var=@./src/*.py"    # Glob pattern
 ```
 
 ## Architecture
@@ -39,7 +41,7 @@ Jinja2 templating + Pydantic validation.
 - **`renderer.py`**: `TemplateRenderer` - Jinja2 wrapper
 - **`validator.py`**: `TemplateValidator` - syntax, types, unused/undeclared vars
 - **`registry.py`**: `TemplateRegistry` - discovers from `./templates`, `./prompts`, `~/.prompt_templates`
-- **`cli.py`**: Click CLI with Rich - `list`, `show`, `run`, `validate`, `init`, `new`
+- **`cli.py`**: Click CLI with Rich - `list`, `show`, `run`, `validate`, `init`, `new`; file input via `@` prefix
 
 ### YAML Schema
 ```yaml
