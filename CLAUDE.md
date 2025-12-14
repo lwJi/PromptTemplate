@@ -1,59 +1,47 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code when working with this repository.
 
-## Build and Development Commands
+## Commands
 
 ```bash
-# Install package with dev dependencies
+# Install
 pip install -e ".[dev]"
 
-# Run all tests with coverage
+# Test
 pytest -v
-
-# Run a single test file
-pytest tests/test_template.py -v
-
-# Run a specific test
 pytest tests/test_template.py::TestTemplateRendering::test_simple_render -v
 
-# Linting
+# Lint & Type Check
 ruff check prompt_template tests
-
-# Type checking
 mypy prompt_template --ignore-missing-imports
 
-# CLI usage after install
+# CLI
 prompt list
-prompt show <template-name>
-prompt run <template-name> -v "var=value"
+prompt show <name>
+prompt run <name> -v "var=value"
 ```
 
 ## Architecture
 
-This is a prompt template management tool that uses Jinja2 for templating and Pydantic for validation.
+Jinja2 templating + Pydantic validation.
 
-### Core Flow
-1. Templates are YAML files loaded via `Template.from_file()` or discovered by `TemplateRegistry`
-2. YAML is parsed into `TemplateConfig` (Pydantic model) for validation
-3. `TemplateValidator` checks syntax, variable declarations, and type constraints
-4. `TemplateRenderer` uses Jinja2 to render templates with provided variables
+### Flow
+1. YAML loaded via `Template.from_file()` or `TemplateRegistry`
+2. Parsed into `TemplateConfig` (Pydantic)
+3. `TemplateValidator` checks syntax and types
+4. `TemplateRenderer` renders with Jinja2
 
-### Key Components
+### Components
 
-- **`template.py`**: `Template` class - main entry point for loading, validating, and rendering templates. Factory methods: `from_file()`, `from_string()`, `from_dict()`
+- **`template.py`**: `Template` class - `from_file()`, `from_string()`, `from_dict()`, `render()`, `validate()`
+- **`models.py`**: Pydantic models - `TemplateConfig`, `VariableConfig`, `VariableType`
+- **`renderer.py`**: `TemplateRenderer` - Jinja2 wrapper
+- **`validator.py`**: `TemplateValidator` - syntax, types, unused/undeclared vars
+- **`registry.py`**: `TemplateRegistry` - discovers from `./templates`, `./prompts`, `~/.prompt_templates`
+- **`cli.py`**: Click CLI with Rich - `list`, `show`, `run`, `validate`, `init`, `new`
 
-- **`models.py`**: Pydantic models (`TemplateConfig`, `VariableConfig`, `VariableType`) defining the YAML schema
-
-- **`renderer.py`**: `TemplateRenderer` - wraps Jinja2 with strict undefined handling and variable extraction
-
-- **`validator.py`**: `TemplateValidator` - validates syntax, type checking, enum constraints, detects unused/undeclared variables
-
-- **`registry.py`**: `TemplateRegistry` - discovers templates from search paths (`./templates`, `./prompts`, `~/.prompt_templates`)
-
-- **`cli.py`**: Click-based CLI with Rich output (`list`, `show`, `run`, `validate`, `init`, `new` commands)
-
-### Template YAML Schema
+### YAML Schema
 ```yaml
 name: string (required)
 description: string
@@ -66,6 +54,5 @@ variables:
     default: any
     enum: [values]
     description: string
-template: string (Jinja2 content, required)
-model_config: {provider, model, parameters}  # optional
+template: string (required)
 ```
