@@ -1,11 +1,12 @@
 """Tests for the TemplateRegistry class."""
 
-import pytest
-from pathlib import Path
-import tempfile
 import shutil
+import tempfile
+from pathlib import Path
 
-from prompt_template import TemplateRegistry, TemplateNotFoundError
+import pytest
+
+from prompt_template import TemplateNotFoundError, TemplateRegistry
 
 
 class TestTemplateRegistry:
@@ -155,8 +156,8 @@ variables:
         registry = TemplateRegistry(search_paths=[temp_templates_dir])
 
         # Should find greeting (matches tag)
-        results = registry.search(query="hello", tags=["simple"])
         # Note: query searches name/description, not template content
+        _ = registry.search(query="hello", tags=["simple"])
 
     def test_exists(self, temp_templates_dir):
         """Test checking if template exists."""

@@ -59,7 +59,10 @@ def list_templates(
         console.print("[yellow]No templates found.[/yellow]")
         console.print("\nSearch paths:")
         for status in registry.get_search_paths_status():
-            exists = "[green]exists[/green]" if status["exists"] else "[red]missing[/red]"
+            if status["exists"]:
+                exists = "[green]exists[/green]"
+            else:
+                exists = "[red]missing[/red]"
             console.print(f"  {status['path']} ({exists})")
         console.print("\nRun 'prompt init' to create a templates directory.")
         return
@@ -85,9 +88,12 @@ def list_templates(
         table.add_column("Tags", style="green")
 
         for t in templates:
+            desc = t.description
+            if len(desc) > 50:
+                desc = desc[:50] + "..."
             table.add_row(
                 t.name,
-                t.description[:50] + "..." if len(t.description) > 50 else t.description,
+                desc,
                 t.version,
                 ", ".join(t.tags) if t.tags else "",
             )
@@ -130,7 +136,8 @@ def show_template(name: str, raw: bool, preview: bool) -> None:
         return
 
     # Show template details
-    console.print(Panel(f"[bold]{template.name}[/bold]", subtitle=f"v{template.config.version}"))
+    version_str = f"v{template.config.version}"
+    console.print(Panel(f"[bold]{template.name}[/bold]", subtitle=version_str))
 
     if template.description:
         console.print(f"\n[dim]Description:[/dim] {template.description}")
@@ -178,7 +185,9 @@ def show_template(name: str, raw: bool, preview: bool) -> None:
 @cli.command("run")
 @click.argument("name")
 @click.option("--var", "-v", multiple=True, help="Variable in key=value format")
-@click.option("--json-input", "-j", type=click.File("r"), help="Load variables from JSON file")
+@click.option(
+    "--json-input", "-j", type=click.File("r"), help="Load variables from JSON"
+)
 @click.option("--interactive", "-i", is_flag=True, help="Prompt for missing variables")
 @click.option("--copy", "-c", is_flag=True, help="Copy result to clipboard")
 def run_template(
@@ -230,7 +239,8 @@ def run_template(
                         prompt_text += f" ({var_config.description})"
 
                     if var_config.enum:
-                        console.print(f"[dim]Options: {', '.join(var_config.enum)}[/dim]")
+                        opts = ", ".join(var_config.enum)
+                        console.print(f"[dim]Options: {opts}[/dim]")
 
                     value = click.prompt(prompt_text)
                     variables[var_config.name] = value
@@ -260,7 +270,8 @@ def run_template(
             pyperclip.copy(result)
             console.print("[green]Copied to clipboard![/green]")
         except ImportError:
-            console.print("[yellow]Install pyperclip for clipboard support: pip install pyperclip[/yellow]")
+            msg = "Install pyperclip for clipboard support: pip install pyperclip"
+            console.print(f"[yellow]{msg}[/yellow]")
         except Exception as e:
             console.print(f"[yellow]Could not copy to clipboard: {e}[/yellow]")
 
@@ -286,8 +297,10 @@ def validate_template(file: str) -> None:
                 console.print(f"  [yellow]•[/yellow] {warning}")
 
         # Show summary
-        console.print(f"\n[dim]Variables defined: {len(template.variables)}[/dim]")
-        console.print(f"[dim]Variables used in template: {len(template.get_all_variables())}[/dim]")
+        num_defined = len(template.variables)
+        num_used = len(template.get_all_variables())
+        console.print(f"\n[dim]Variables defined: {num_defined}[/dim]")
+        console.print(f"[dim]Variables used in template: {num_used}[/dim]")
 
         if not result.is_valid:
             raise SystemExit(1)
@@ -413,7 +426,9 @@ REVIEW:""",
         filepath = directory / example["filename"]
         if not filepath.exists():
             with open(filepath, "w") as f:
-                yaml.dump(example["content"], f, default_flow_style=False, sort_keys=False)
+                yaml.dump(
+                    example["content"], f, default_flow_style=False, sort_keys=False
+                )
             console.print(f"[green]Created:[/green] {filepath}")
         else:
             console.print(f"[dim]Skipped (exists):[/dim] {filepath}")
@@ -441,7 +456,9 @@ def new_template(name: str, output: str | None) -> None:
         var_required = click.confirm(f"  Is '{var_name}' required?", default=True)
         var_default = None
         if not var_required:
-            var_default = click.prompt(f"  Default value for '{var_name}'", default="", show_default=False)
+            var_default = click.prompt(
+                f"  Default value for '{var_name}'", default="", show_default=False
+            )
             if not var_default:
                 var_default = None
 

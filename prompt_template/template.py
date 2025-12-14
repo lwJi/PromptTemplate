@@ -103,7 +103,7 @@ class Template:
 
         try:
             content = path.read_text(encoding="utf-8")
-        except IOError as e:
+        except OSError as e:
             raise TemplateError(
                 f"Failed to read template file: {e}",
                 context={"path": str(path)},
@@ -166,7 +166,7 @@ class Template:
                 errors.append(f"  {loc}: {err['msg']}")
 
             raise TemplateValidationError(
-                f"Invalid template configuration:\n" + "\n".join(errors),
+                "Invalid template configuration:\n" + "\n".join(errors),
                 context={"source": source},
             )
 
@@ -219,7 +219,7 @@ class Template:
         validation = self._validator.validate_inputs(self.config, merged_vars)
         if not validation.is_valid:
             raise TemplateRenderError(
-                f"Invalid input values:\n  " + "\n  ".join(validation.errors),
+                "Invalid input values:\n  " + "\n  ".join(validation.errors),
                 context={"provided_vars": list(variables.keys())},
             )
 

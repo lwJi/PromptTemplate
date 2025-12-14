@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from difflib import get_close_matches
 from pathlib import Path
-from typing import Iterator
 
 from .template import Template, TemplateNotFoundError
 

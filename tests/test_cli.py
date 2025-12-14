@@ -1,10 +1,11 @@
 """Tests for the CLI interface."""
 
+import shutil
+import tempfile
+from pathlib import Path
+
 import pytest
 from click.testing import CliRunner
-from pathlib import Path
-import tempfile
-import shutil
 
 from prompt_template.cli import cli
 
@@ -213,8 +214,11 @@ variables:
 
     def test_new_template(self, runner, temp_templates_dir):
         """Test new command creates template."""
-        result = runner.invoke(cli, ["new", "my-new-template", "-o", "my-new-template.yaml"], input="My description\nvar1\nFirst variable\ny\n\n")
-
+        runner.invoke(
+            cli,
+            ["new", "my-new-template", "-o", "my-new-template.yaml"],
+            input="My description\nvar1\nFirst variable\ny\n\n"
+        )
         # The command should complete (may need editor for template content)
         # In tests, editor returns None, so it might fail
         # But the basic flow should work
@@ -259,7 +263,9 @@ variables:
             result = runner.invoke(cli, ["run", "test", "-v", "invalid"])
 
             assert result.exit_code == 1
-            assert "invalid" in result.output.lower() or "format" in result.output.lower()
+            is_invalid = "invalid" in result.output.lower()
+            is_format = "format" in result.output.lower()
+            assert is_invalid or is_format
 
     def test_json_parse_error(self, runner):
         """Test error for invalid JSON input."""

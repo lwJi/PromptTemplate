@@ -3,7 +3,12 @@
 import re
 from typing import Any
 
-from jinja2 import Environment, StrictUndefined, TemplateSyntaxError, UndefinedError, meta
+from jinja2 import (
+    Environment,
+    StrictUndefined,
+    TemplateSyntaxError,
+    meta,
+)
 
 
 class TemplateRenderer:

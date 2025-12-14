@@ -135,10 +135,16 @@ class TemplateValidator:
         """
         result = ValidationResult(is_valid=True)
 
+        def is_int(v: Any) -> bool:
+            return isinstance(v, int) and not isinstance(v, bool)
+
+        def is_float(v: Any) -> bool:
+            return isinstance(v, (int, float)) and not isinstance(v, bool)
+
         type_checks = {
             VariableType.STRING: lambda v: isinstance(v, str),
-            VariableType.INTEGER: lambda v: isinstance(v, int) and not isinstance(v, bool),
-            VariableType.FLOAT: lambda v: isinstance(v, (int, float)) and not isinstance(v, bool),
+            VariableType.INTEGER: is_int,
+            VariableType.FLOAT: is_float,
             VariableType.BOOLEAN: lambda v: isinstance(v, bool),
             VariableType.LIST: lambda v: isinstance(v, list),
             VariableType.OBJECT: lambda v: isinstance(v, dict),

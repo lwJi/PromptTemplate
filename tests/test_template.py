@@ -1,18 +1,17 @@
 """Tests for the Template class."""
 
-import pytest
-from pathlib import Path
 import tempfile
+
+import pytest
 
 from prompt_template import (
     Template,
     TemplateConfig,
+    TemplateNotFoundError,
+    TemplateRenderError,
+    TemplateValidationError,
     VariableConfig,
     VariableType,
-    TemplateError,
-    TemplateNotFoundError,
-    TemplateValidationError,
-    TemplateRenderError,
 )
 
 
@@ -115,7 +114,12 @@ class TestTemplateRendering:
             "template": "Hello, {{name}}! Style: {{style}}",
             "variables": [
                 {"name": "name", "type": "string", "required": True},
-                {"name": "style", "type": "string", "required": False, "default": "formal"},
+                {
+                    "name": "style",
+                    "type": "string",
+                    "required": False,
+                    "default": "formal",
+                },
             ],
         })
 
@@ -128,7 +132,12 @@ class TestTemplateRendering:
             "name": "greeting",
             "template": "Style: {{style}}",
             "variables": [
-                {"name": "style", "type": "string", "required": False, "default": "formal"},
+                {
+                    "name": "style",
+                    "type": "string",
+                    "required": False,
+                    "default": "formal",
+                },
             ],
         })
 
@@ -146,16 +155,25 @@ class TestTemplateRendering:
         with pytest.raises(TemplateRenderError) as exc_info:
             template.render()
 
-        assert "missing" in str(exc_info.value).lower() or "required" in str(exc_info.value).lower()
+        error_msg = str(exc_info.value).lower()
+        assert "missing" in error_msg or "required" in error_msg
 
     def test_render_with_conditionals(self):
         """Test rendering with Jinja2 conditionals."""
+        template_str = (
+            "{% if formal %}Dear {{name}},{% else %}Hi {{name}}!{% endif %}"
+        )
         template = Template.from_dict({
             "name": "conditional",
-            "template": "{% if formal %}Dear {{name}},{% else %}Hi {{name}}!{% endif %}",
+            "template": template_str,
             "variables": [
                 {"name": "name", "type": "string", "required": True},
-                {"name": "formal", "type": "boolean", "required": False, "default": False},
+                {
+                    "name": "formal",
+                    "type": "boolean",
+                    "required": False,
+                    "default": False,
+                },
             ],
         })
 
@@ -167,9 +185,14 @@ class TestTemplateRendering:
 
     def test_render_with_loops(self):
         """Test rendering with Jinja2 loops."""
+        template_str = (
+            "Items: {% for item in items %}"
+            "{{item}}{% if not loop.last %}, {% endif %}"
+            "{% endfor %}"
+        )
         template = Template.from_dict({
             "name": "list-template",
-            "template": "Items: {% for item in items %}{{item}}{% if not loop.last %}, {% endif %}{% endfor %}",
+            "template": template_str,
             "variables": [{"name": "items", "type": "list", "required": True}],
         })
 
