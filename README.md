@@ -13,6 +13,8 @@ A prompt template tool for managing and rendering LLM prompts with Jinja2 suppor
 - **Variable Validation** - Type checking, defaults, and enum constraints
 - **Template Registry** - Auto-discover templates from `./templates`, `./prompts`, `~/.prompt_templates`
 - **Rich CLI** - Syntax highlighting and interactive mode
+- **Multiple Output Formats** - Raw, JSON, Markdown, Chat API, shell env
+- **LLM-Ready** - System/user prompt separation for chat APIs
 
 ## Installation
 
@@ -99,6 +101,65 @@ prompt run template -v "code=@./src/**/*.py"
 ```
 
 When multiple files match a glob pattern, they are concatenated with `# File: <path>` headers.
+
+## Output Formats
+
+Use `--format` / `-f` to specify output format:
+
+```bash
+# Raw text (for piping)
+prompt run template -v "text=hello" -f raw
+
+# JSON with metadata (for automation)
+prompt run template -v "text=hello" -f json
+
+# Markdown (for documentation)
+prompt run template -v "text=hello" -f markdown
+
+# OpenAI/Anthropic chat API format
+prompt run template -v "text=hello" -f chat-api
+
+# Shell environment variables
+prompt run template -v "text=hello" -f env
+
+# Write to file
+prompt run template -v "text=hello" -f json -o output.json
+```
+
+## System/User Prompts
+
+For chat APIs, separate system and user prompts:
+
+```yaml
+name: assistant
+system_prompt: |
+  You are a helpful {{role}}.
+user_prompt: |
+  Help me with: {{task}}
+variables:
+  - name: role
+    type: string
+    required: true
+  - name: task
+    type: string
+    required: true
+```
+
+Use with `chat-api` format for OpenAI/Anthropic compatible output:
+
+```bash
+prompt run assistant -v "role=coding assistant" -v "task=debugging" -f chat-api
+```
+
+Output:
+```json
+{
+  "messages": [
+    {"role": "system", "content": "You are a helpful coding assistant."},
+    {"role": "user", "content": "Help me with: debugging"}
+  ]
+}
+```
 
 ## Python API
 

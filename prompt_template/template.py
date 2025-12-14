@@ -224,13 +224,75 @@ class Template:
             )
 
         try:
-            return self._renderer.render(self.config.template, merged_vars)
+            # If using split prompts, combine them
+            if self.has_split_prompts:
+                parts = []
+                if self.config.system_prompt:
+                    rendered = self._renderer.render(
+                        self.config.system_prompt, merged_vars
+                    )
+                    parts.append(rendered)
+                if self.config.user_prompt:
+                    rendered = self._renderer.render(
+                        self.config.user_prompt, merged_vars
+                    )
+                    parts.append(rendered)
+                return "\n\n".join(parts)
+            else:
+                return self._renderer.render(self.config.template, merged_vars)
         except Exception as e:
             raise TemplateRenderError(
                 f"Failed to render template: {e}",
                 suggestion="Check that all required variables are provided",
                 context={"variables": list(merged_vars.keys())},
             )
+
+    def render_split(self, **variables: Any) -> tuple[str | None, str | None]:
+        """Render system and user prompts separately.
+
+        Args:
+            **variables: Variable values to substitute
+
+        Returns:
+            Tuple of (system_prompt, user_prompt), either can be None
+
+        Raises:
+            TemplateRenderError: If rendering fails
+        """
+        merged_vars = self._apply_defaults(variables)
+
+        validation = self._validator.validate_inputs(self.config, merged_vars)
+        if not validation.is_valid:
+            raise TemplateRenderError(
+                "Invalid input values:\n  " + "\n  ".join(validation.errors),
+                context={"provided_vars": list(variables.keys())},
+            )
+
+        try:
+            system_rendered = None
+            user_rendered = None
+
+            if self.config.system_prompt:
+                system_rendered = self._renderer.render(
+                    self.config.system_prompt, merged_vars
+                )
+            if self.config.user_prompt:
+                user_rendered = self._renderer.render(
+                    self.config.user_prompt, merged_vars
+                )
+
+            return system_rendered, user_rendered
+        except Exception as e:
+            raise TemplateRenderError(
+                f"Failed to render template: {e}",
+                suggestion="Check that all required variables are provided",
+                context={"variables": list(merged_vars.keys())},
+            )
+
+    @property
+    def has_split_prompts(self) -> bool:
+        """Check if template uses split system/user prompts."""
+        return bool(self.config.system_prompt or self.config.user_prompt)
 
     def _apply_defaults(self, variables: dict[str, Any]) -> dict[str, Any]:
         """Apply default values for missing variables.

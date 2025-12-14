@@ -3,7 +3,7 @@
 from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class VariableType(str, Enum):
@@ -74,7 +74,13 @@ class TemplateConfig(BaseModel):
     variables: list[VariableConfig] = Field(
         default_factory=list, description="Template variables"
     )
-    template: str = Field(..., description="The template content")
+    template: str = Field(default="", description="The template content")
+    system_prompt: str | None = Field(
+        default=None, description="System prompt (for chat API format)"
+    )
+    user_prompt: str | None = Field(
+        default=None, description="User prompt (for chat API format)"
+    )
     model_config_settings: ModelConfig | None = Field(
         default=None,
         alias="model_config",
@@ -100,11 +106,25 @@ class TemplateConfig(BaseModel):
 
     @field_validator("template")
     @classmethod
-    def validate_template_not_empty(cls, v: str) -> str:
-        """Ensure template content is not empty."""
-        if not v.strip():
-            raise ValueError("Template content cannot be empty")
+    def validate_template_not_empty(cls, v: str, info: Any) -> str:
+        """Ensure template content is not empty (unless using system/user prompts)."""
+        # Allow empty template if system_prompt or user_prompt will be provided
+        # The model_validator below will check that at least one is provided
         return v
+
+    @model_validator(mode="after")
+    def validate_has_template_content(self) -> "TemplateConfig":
+        """Ensure at least template or system_prompt/user_prompt is provided."""
+        has_template = bool(self.template and self.template.strip())
+        has_system = bool(self.system_prompt and self.system_prompt.strip())
+        has_user = bool(self.user_prompt and self.user_prompt.strip())
+
+        if not has_template and not has_system and not has_user:
+            raise ValueError(
+                "Template must have either 'template' content or "
+                "'system_prompt'/'user_prompt' defined"
+            )
+        return self
 
     def get_variable(self, name: str) -> VariableConfig | None:
         """Get a variable configuration by name."""

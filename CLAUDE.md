@@ -22,6 +22,8 @@ prompt show <name>
 prompt run <name> -v "var=value"
 prompt run <name> -v "var=@file.txt"      # Load from file
 prompt run <name> -v "var=@./src/*.py"    # Glob pattern
+prompt run <name> -f raw                  # Output formats: panel, raw, json, markdown, chat-api, env
+prompt run <name> -f json -o out.json     # Write to file
 ```
 
 ## Architecture
@@ -41,7 +43,8 @@ Jinja2 templating + Pydantic validation.
 - **`renderer.py`**: `TemplateRenderer` - Jinja2 wrapper
 - **`validator.py`**: `TemplateValidator` - syntax, types, unused/undeclared vars
 - **`registry.py`**: `TemplateRegistry` - discovers from `./templates`, `./prompts`, `~/.prompt_templates`
-- **`cli.py`**: Click CLI with Rich - `list`, `show`, `run`, `validate`, `init`, `new`; file input via `@` prefix
+- **`cli.py`**: Click CLI with Rich - `list`, `show`, `run`, `validate`, `init`, `new`; file input via `@` prefix; output formats via `-f`
+- **`formatters.py`**: Output formatters - `RawFormatter`, `JSONFormatter`, `MarkdownFormatter`, `ChatAPIFormatter`, `EnvFormatter`
 
 ### YAML Schema
 ```yaml
@@ -56,5 +59,8 @@ variables:
     default: any
     enum: [values]
     description: string
-template: string (required)
+# Use ONE of: template OR system_prompt/user_prompt
+template: string
+system_prompt: string  # For chat API format
+user_prompt: string    # For chat API format
 ```

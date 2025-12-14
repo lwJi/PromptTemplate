@@ -483,3 +483,250 @@ variables:
 
             assert result.exit_code == 0
             assert "user@example.com" in result.output
+
+
+class TestOutputFormats:
+    """Tests for output format options."""
+
+    @pytest.fixture
+    def runner(self):
+        """Create a CLI runner."""
+        return CliRunner()
+
+    @pytest.fixture
+    def template_dir(self, runner):
+        """Create a temporary directory with a test template."""
+        with runner.isolated_filesystem():
+            Path("templates").mkdir()
+            Path("templates/echo.yaml").write_text("""
+name: echo
+template: "Hello, {{name}}!"
+variables:
+  - name: name
+    type: string
+    required: true
+""")
+            yield
+
+    def test_format_raw(self, runner, template_dir):
+        """Test raw output format."""
+        result = runner.invoke(cli, [
+            "run", "echo", "-v", "name=World", "-f", "raw"
+        ])
+
+        assert result.exit_code == 0
+        assert result.output.strip() == "Hello, World!"
+        # Should not contain Rich panel decorations
+        assert "╭" not in result.output
+        assert "╰" not in result.output
+
+    def test_format_json(self, runner, template_dir):
+        """Test JSON output format."""
+        import json
+
+        result = runner.invoke(cli, [
+            "run", "echo", "-v", "name=World", "-f", "json"
+        ])
+
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+        assert data["template"]["name"] == "echo"
+        assert data["rendered"] == "Hello, World!"
+        assert data["variables"]["name"] == "World"
+        assert "timestamp" in data["metadata"]
+
+    def test_format_markdown(self, runner, template_dir):
+        """Test Markdown output format."""
+        result = runner.invoke(cli, [
+            "run", "echo", "-v", "name=World", "-f", "markdown"
+        ])
+
+        assert result.exit_code == 0
+        assert "# echo" in result.output
+        assert "**Version:**" in result.output
+        assert "## Variables" in result.output
+        assert "| name | World |" in result.output
+        assert "## Rendered Output" in result.output
+        assert "Hello, World!" in result.output
+
+    def test_format_chat_api(self, runner, template_dir):
+        """Test chat-api output format."""
+        import json
+
+        result = runner.invoke(cli, [
+            "run", "echo", "-v", "name=World", "-f", "chat-api"
+        ])
+
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+        assert "messages" in data
+        assert len(data["messages"]) == 1
+        assert data["messages"][0]["role"] == "user"
+        assert data["messages"][0]["content"] == "Hello, World!"
+        assert data["metadata"]["template"] == "echo"
+
+    def test_format_env(self, runner, template_dir):
+        """Test env output format."""
+        result = runner.invoke(cli, [
+            "run", "echo", "-v", "name=World", "-f", "env"
+        ])
+
+        assert result.exit_code == 0
+        assert "#!/bin/bash" in result.output
+        assert 'export PROMPT_TEMPLATE_NAME="echo"' in result.output
+        assert "export PROMPT_VAR_NAME='World'" in result.output
+        assert "PROMPT_CONTENT" in result.output
+        assert "Hello, World!" in result.output
+
+    def test_output_to_file(self, runner, template_dir):
+        """Test writing output to file."""
+        result = runner.invoke(cli, [
+            "run", "echo", "-v", "name=World", "-f", "raw", "-o", "output.txt"
+        ])
+
+        assert result.exit_code == 0
+        assert "Output written to" in result.output
+        assert Path("output.txt").exists()
+        assert Path("output.txt").read_text() == "Hello, World!"
+
+    def test_output_to_file_json(self, runner, template_dir):
+        """Test writing JSON output to file."""
+        import json
+
+        result = runner.invoke(cli, [
+            "run", "echo", "-v", "name=World", "-f", "json", "-o", "output.json"
+        ])
+
+        assert result.exit_code == 0
+        data = json.loads(Path("output.json").read_text())
+        assert data["rendered"] == "Hello, World!"
+
+
+class TestSplitPrompts:
+    """Tests for system/user prompt separation."""
+
+    @pytest.fixture
+    def runner(self):
+        """Create a CLI runner."""
+        return CliRunner()
+
+    def test_split_prompts_render(self, runner):
+        """Test rendering with split system/user prompts."""
+        with runner.isolated_filesystem():
+            Path("templates").mkdir()
+            Path("templates/chat.yaml").write_text("""
+name: chat
+system_prompt: "You are a helpful {{role}}."
+user_prompt: "Please help me with: {{task}}"
+variables:
+  - name: role
+    type: string
+    required: true
+  - name: task
+    type: string
+    required: true
+""")
+
+            result = runner.invoke(cli, [
+                "run", "chat", "-v", "role=assistant", "-v", "task=coding"
+            ])
+
+            assert result.exit_code == 0
+            assert "You are a helpful assistant." in result.output
+            assert "Please help me with: coding" in result.output
+
+    def test_split_prompts_json_format(self, runner):
+        """Test JSON output includes split prompts."""
+        import json
+
+        with runner.isolated_filesystem():
+            Path("templates").mkdir()
+            Path("templates/chat.yaml").write_text("""
+name: chat
+system_prompt: "You are a helpful {{role}}."
+user_prompt: "Please help me with: {{task}}"
+variables:
+  - name: role
+    type: string
+    required: true
+  - name: task
+    type: string
+    required: true
+""")
+
+            result = runner.invoke(cli, [
+                "run", "chat",
+                "-v", "role=assistant",
+                "-v", "task=coding",
+                "-f", "json"
+            ])
+
+            assert result.exit_code == 0
+            data = json.loads(result.output)
+            assert "prompts" in data
+            assert data["prompts"]["system"] == "You are a helpful assistant."
+            assert data["prompts"]["user"] == "Please help me with: coding"
+
+    def test_split_prompts_chat_api_format(self, runner):
+        """Test chat-api output with split prompts."""
+        import json
+
+        with runner.isolated_filesystem():
+            Path("templates").mkdir()
+            Path("templates/chat.yaml").write_text("""
+name: chat
+system_prompt: "You are a helpful {{role}}."
+user_prompt: "Please help me with: {{task}}"
+variables:
+  - name: role
+    type: string
+    required: true
+  - name: task
+    type: string
+    required: true
+""")
+
+            result = runner.invoke(cli, [
+                "run", "chat",
+                "-v", "role=assistant",
+                "-v", "task=coding",
+                "-f", "chat-api"
+            ])
+
+            assert result.exit_code == 0
+            data = json.loads(result.output)
+            assert len(data["messages"]) == 2
+            assert data["messages"][0]["role"] == "system"
+            assert data["messages"][0]["content"] == "You are a helpful assistant."
+            assert data["messages"][1]["role"] == "user"
+            assert data["messages"][1]["content"] == "Please help me with: coding"
+
+    def test_split_prompts_markdown_format(self, runner):
+        """Test markdown output with split prompts."""
+        with runner.isolated_filesystem():
+            Path("templates").mkdir()
+            Path("templates/chat.yaml").write_text("""
+name: chat
+system_prompt: "You are a helpful {{role}}."
+user_prompt: "Please help me with: {{task}}"
+variables:
+  - name: role
+    type: string
+    required: true
+  - name: task
+    type: string
+    required: true
+""")
+
+            result = runner.invoke(cli, [
+                "run", "chat",
+                "-v", "role=assistant",
+                "-v", "task=coding",
+                "-f", "markdown"
+            ])
+
+            assert result.exit_code == 0
+            assert "## System Prompt" in result.output
+            assert "## User Prompt" in result.output
+            assert "You are a helpful assistant." in result.output
+            assert "Please help me with: coding" in result.output

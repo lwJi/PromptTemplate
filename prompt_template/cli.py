@@ -11,6 +11,7 @@ from rich.panel import Panel
 from rich.syntax import Syntax
 from rich.table import Table
 
+from .formatters import get_formatter
 from .registry import TemplateRegistry
 from .template import Template, TemplateError
 
@@ -260,14 +261,39 @@ def show_template(name: str, raw: bool, preview: bool) -> None:
 )
 @click.option("--interactive", "-i", is_flag=True, help="Prompt for missing variables")
 @click.option("--copy", "-c", is_flag=True, help="Copy result to clipboard")
+@click.option(
+    "--format",
+    "-f",
+    "output_format",
+    type=click.Choice(["panel", "raw", "json", "markdown", "chat-api", "env"]),
+    default="panel",
+    help="Output format (default: panel)",
+)
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(),
+    help="Write output to file instead of stdout",
+)
 def run_template(
     name: str,
     var: tuple[str, ...],
     json_input: Any,
     interactive: bool,
     copy: bool,
+    output_format: str,
+    output: str | None,
 ) -> None:
-    """Render a template with variables."""
+    """Render a template with variables.
+
+    Output formats:
+      panel     Rich formatted panel (default, for terminal)
+      raw       Plain text without decoration
+      json      JSON with metadata
+      markdown  Markdown formatted
+      chat-api  OpenAI/Anthropic compatible messages format
+      env       Shell environment variables
+    """
     registry = get_registry()
 
     try:
@@ -330,20 +356,50 @@ def run_template(
     # Render template
     try:
         result = template.render(**variables)
+        # Also get split prompts if available
+        system_rendered, user_rendered = None, None
+        if template.has_split_prompts:
+            system_rendered, user_rendered = template.render_split(**variables)
     except TemplateError as e:
         console.print(f"[red]Error:[/red] {e.message}")
         if e.suggestion:
             console.print(f"[yellow]Suggestion:[/yellow] {e.suggestion}")
         raise SystemExit(1)
 
+    # Format output
+    if output_format == "panel":
+        # Rich panel format (default)
+        formatted_output = None  # Will use console.print(Panel()) instead
+    else:
+        formatter = get_formatter(output_format)
+        formatted_output = formatter.format(
+            rendered=result,
+            config=template.config,
+            variables=variables,
+            system_rendered=system_rendered,
+            user_rendered=user_rendered,
+        )
+
     # Output result
-    console.print(Panel(result, title=f"Rendered: {name}"))
+    if output:
+        # Write to file
+        output_path = Path(output)
+        content = formatted_output if formatted_output else result
+        output_path.write_text(content, encoding="utf-8")
+        console.print(f"[green]Output written to:[/green] {output_path}")
+    elif formatted_output:
+        # Print formatted output (no Rich formatting)
+        print(formatted_output)
+    else:
+        # Default panel format
+        console.print(Panel(result, title=f"Rendered: {name}"))
 
     # Copy to clipboard if requested
     if copy:
+        copy_content = formatted_output if formatted_output else result
         try:
             import pyperclip
-            pyperclip.copy(result)
+            pyperclip.copy(copy_content)
             console.print("[green]Copied to clipboard![/green]")
         except ImportError:
             msg = "Install pyperclip for clipboard support: pip install pyperclip"
