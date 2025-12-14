@@ -1,0 +1,98 @@
+name: code-reviewer
+description: Review code for issues, improvements, and best practices
+version: 1.0.0
+author: prompt-template
+tags:
+  - code
+  - review
+  - development
+  - quality
+
+variables:
+  - name: code
+    type: string
+    required: true
+    description: The code to review
+
+  - name: language
+    type: string
+    required: true
+    description: Programming language (e.g., python, javascript, go)
+
+  - name: focus
+    type: string
+    required: false
+    default: general
+    enum:
+      - general
+      - security
+      - performance
+      - readability
+      - testing
+    description: Primary focus area for the review
+
+  - name: strictness
+    type: string
+    required: false
+    default: moderate
+    enum:
+      - lenient
+      - moderate
+      - strict
+    description: How strict the review should be
+
+template: |
+  You are an expert {{language}} code reviewer with years of experience.
+  Review the following code with a {{strictness}} level of strictness.
+  Primary focus: {{focus}}
+
+  REVIEW CRITERIA:
+  {% if focus == "general" %}
+  - Code correctness and logic errors
+  - Best practices and coding standards
+  - Error handling
+  - Code organization
+  {% elif focus == "security" %}
+  - Input validation vulnerabilities
+  - Authentication/authorization issues
+  - Data exposure risks
+  - Injection vulnerabilities (SQL, XSS, etc.)
+  - Secrets/credentials handling
+  {% elif focus == "performance" %}
+  - Algorithm efficiency (time/space complexity)
+  - Memory usage and leaks
+  - Unnecessary computations
+  - Database query optimization
+  - Caching opportunities
+  {% elif focus == "readability" %}
+  - Naming conventions
+  - Code structure and organization
+  - Comments and documentation
+  - Function/method length
+  - Complexity and abstractions
+  {% elif focus == "testing" %}
+  - Test coverage gaps
+  - Edge cases
+  - Mock/stub usage
+  - Test organization
+  - Assertion quality
+  {% endif %}
+
+  CODE TO REVIEW:
+  ```{{language}}
+  {{code}}
+  ```
+
+  Provide your review in this format:
+
+  ## Issues Found
+  List any bugs, problems, or violations (critical first)
+
+  ## Suggestions
+  Improvements and recommendations
+
+  ## Positive Aspects
+  What's done well
+
+  ## Summary
+  Overall assessment (1-2 sentences)
