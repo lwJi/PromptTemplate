@@ -329,7 +329,23 @@ class Template:
         for var in self.config.variables:
             if var.name not in merged_vars and var.default is not None:
                 merged_vars[var.name] = var.default
-        return self._renderer.preview(self.config.template, merged_vars)
+
+        # Handle split prompts the same way as render()
+        if self.has_split_prompts:
+            parts = []
+            if self.config.system_prompt:
+                preview = self._renderer.preview(
+                    self.config.system_prompt, merged_vars
+                )
+                parts.append(preview)
+            if self.config.user_prompt:
+                preview = self._renderer.preview(
+                    self.config.user_prompt, merged_vars
+                )
+                parts.append(preview)
+            return "\n\n".join(parts)
+        else:
+            return self._renderer.preview(self.config.template, merged_vars)
 
     def get_required_variables(self) -> list[str]:
         """Get names of required variables without defaults.
@@ -349,7 +365,14 @@ class Template:
         Returns:
             Set of variable names
         """
-        return self._renderer.extract_variables(self.config.template)
+        all_vars: set[str] = set()
+        if self.config.template:
+            all_vars.update(self._renderer.extract_variables(self.config.template))
+        if self.config.system_prompt:
+            all_vars.update(self._renderer.extract_variables(self.config.system_prompt))
+        if self.config.user_prompt:
+            all_vars.update(self._renderer.extract_variables(self.config.user_prompt))
+        return all_vars
 
     def to_dict(self) -> dict[str, Any]:
         """Convert template to dictionary representation.

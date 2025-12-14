@@ -4,11 +4,11 @@ import re
 from typing import Any
 
 from jinja2 import (
-    Environment,
     StrictUndefined,
     TemplateSyntaxError,
     meta,
 )
+from jinja2.sandbox import SandboxedEnvironment
 
 
 class TemplateRenderer:
@@ -20,7 +20,8 @@ class TemplateRenderer:
         Args:
             autoescape: Whether to autoescape HTML (default False for prompts)
         """
-        self.env = Environment(
+        # Use SandboxedEnvironment to prevent template injection attacks
+        self.env = SandboxedEnvironment(
             autoescape=autoescape,
             # Use StrictUndefined to raise errors for undefined variables
             undefined=StrictUndefined,
@@ -139,8 +140,8 @@ class TemplateRenderer:
                 preview_vars[var] = f"[{var}]"
 
         try:
-            # Use a lenient environment for preview
-            lenient_env = Environment(autoescape=False)
+            # Use a lenient sandboxed environment for preview
+            lenient_env = SandboxedEnvironment(autoescape=False)
             template = lenient_env.from_string(template_string)
             return template.render(**preview_vars)
         except Exception as e:

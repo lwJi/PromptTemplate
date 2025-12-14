@@ -40,6 +40,40 @@ class TemplateValidator:
         """Initialize the validator."""
         self.renderer = TemplateRenderer()
 
+    def _get_all_template_strings(
+        self, config: TemplateConfig
+    ) -> list[tuple[str, str]]:
+        """Get all template strings from config with their source names.
+
+        Args:
+            config: The template configuration
+
+        Returns:
+            List of (source_name, template_string) tuples
+        """
+        templates: list[tuple[str, str]] = []
+        if config.template:
+            templates.append(("template", config.template))
+        if config.system_prompt:
+            templates.append(("system_prompt", config.system_prompt))
+        if config.user_prompt:
+            templates.append(("user_prompt", config.user_prompt))
+        return templates
+
+    def _extract_all_variables(self, config: TemplateConfig) -> set[str]:
+        """Extract all variables from all template strings.
+
+        Args:
+            config: The template configuration
+
+        Returns:
+            Set of all variable names used in any template string
+        """
+        all_vars: set[str] = set()
+        for _, template_string in self._get_all_template_strings(config):
+            all_vars.update(self.renderer.extract_variables(template_string))
+        return all_vars
+
     def validate(self, config: TemplateConfig) -> ValidationResult:
         """Perform full validation on a template configuration.
 
@@ -51,9 +85,10 @@ class TemplateValidator:
         """
         result = ValidationResult(is_valid=True)
 
-        # Validate syntax
-        syntax_result = self.validate_syntax(config.template)
-        result.merge(syntax_result)
+        # Validate syntax for all template strings
+        for source_name, template_string in self._get_all_template_strings(config):
+            syntax_result = self.validate_syntax(template_string, source_name)
+            result.merge(syntax_result)
 
         # Validate variables
         var_result = self.validate_variables(config)
@@ -69,11 +104,14 @@ class TemplateValidator:
 
         return result
 
-    def validate_syntax(self, template_string: str) -> ValidationResult:
+    def validate_syntax(
+        self, template_string: str, source_name: str = "template"
+    ) -> ValidationResult:
         """Validate template syntax.
 
         Args:
             template_string: The template string to validate
+            source_name: Name of the source field (for error messages)
 
         Returns:
             ValidationResult with syntax errors
@@ -82,7 +120,10 @@ class TemplateValidator:
 
         errors = self.renderer.validate_syntax(template_string)
         for error in errors:
-            result.add_error(error)
+            if source_name != "template":
+                result.add_error(f"[{source_name}] {error}")
+            else:
+                result.add_error(error)
 
         return result
 
@@ -161,7 +202,7 @@ class TemplateValidator:
         return result
 
     def check_unused_variables(self, config: TemplateConfig) -> ValidationResult:
-        """Check for variables defined but not used in template.
+        """Check for variables defined but not used in any template string.
 
         Args:
             config: The template configuration
@@ -171,7 +212,7 @@ class TemplateValidator:
         """
         result = ValidationResult(is_valid=True)
 
-        template_vars = self.renderer.extract_variables(config.template)
+        template_vars = self._extract_all_variables(config)
         defined_vars = {v.name for v in config.variables}
 
         unused = defined_vars - template_vars
@@ -183,7 +224,7 @@ class TemplateValidator:
         return result
 
     def check_undeclared_variables(self, config: TemplateConfig) -> ValidationResult:
-        """Check for variables used in template but not defined.
+        """Check for variables used in any template string but not defined.
 
         Args:
             config: The template configuration
@@ -193,7 +234,7 @@ class TemplateValidator:
         """
         result = ValidationResult(is_valid=True)
 
-        template_vars = self.renderer.extract_variables(config.template)
+        template_vars = self._extract_all_variables(config)
         defined_vars = {v.name for v in config.variables}
 
         undeclared = template_vars - defined_vars
