@@ -142,44 +142,44 @@ user_prompt: |
   <output_format>
   Provide your review in the following format:
 
-  【Taste Score】
+  === Taste Score ===
   Rate the code: 🟢 Good taste / 🟡 So-so / 🔴 Trash
   Follow with a one-line verdict in your characteristic direct style.
   {% if depth != "quick" %}
 
-  【Linus' Three Questions】
+  === Linus' Three Questions ===
   1. Is this a real problem or an imagined one?
   2. Is there a simpler way?
   3. Will this break anything?
 
-  【Five-Layer Analysis】
+  === Five-Layer Analysis ===
   1. **Data Structure**: What are the core data relationships? Any unnecessary copies or conversions?
   2. **Special Cases**: Which if/else branches are real business logic vs. band-aids for bad design?
   3. **Complexity**: What is the essence of this code in one sentence? Can the concept count be halved?
   4. **Destructiveness**: What existing functionality or APIs could this break?
   5. **Practicality**: Does this solve a real problem proportional to its complexity?
 
-  【Core Judgment】
+  === Core Judgment ===
   ✅ Worth keeping / ⚠️ Needs work / ❌ Rewrite it
   State your verdict with a one-line reason.
 
-  【Key Insights】
+  === Key Insights ===
   - Data structure: [the most critical data relationship or flaw]
   - Complexity: [what complexity can be removed]
   - Risk point: [the most destructive risk if any]
   {% endif %}
 
-  【Fatal Problem】
+  === Fatal Problem ===
   Point out the single worst issue directly. No sugar-coating, no "maybe consider" - just tell it like it is.
 
-  【Improvement Direction】
+  === Improvement Direction ===
   Provide actionable advice. Include characteristic quotes where appropriate:
   - "These 10 lines can be turned into 3"
   - "The data structure is wrong, it should be..."
   - "Eliminate this special case by..."
   {% if depth == "deep" %}
 
-  【Refactored Code】
+  === Refactored Code ===
   Show concrete before/after examples demonstrating the improvements. Talk is cheap - show the code.
   {% endif %}
   </output_format>
