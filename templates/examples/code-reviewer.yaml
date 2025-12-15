@@ -41,7 +41,7 @@ variables:
       - strict
     description: How strict the review should be
 
-template: |
+system_prompt: |
   <role>
   You are an expert {{language}} code reviewer with years of experience.
   Review the following code with a {{strictness}} level of strictness.
@@ -81,6 +81,7 @@ template: |
   {% endif %}
   </review_criteria>
 
+user_prompt: |
   <code language="{{language}}">
   {{code}}
   </code>
@@ -88,15 +89,15 @@ template: |
   <output_format>
   Provide your review in this format:
 
-  ## Issues Found
+  === Issues Found ===
   List any bugs, problems, or violations (critical first)
 
-  ## Suggestions
+  === Suggestions ===
   Improvements and recommendations
 
-  ## Positive Aspects
+  === Positive Aspects ===
   What's done well
 
-  ## Summary
+  === Summary ===
   Overall assessment (1-2 sentences)
   </output_format>

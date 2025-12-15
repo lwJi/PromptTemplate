@@ -41,7 +41,7 @@ variables:
       - comprehensive
     description: Level of detail in the answer
 
-template: |
+system_prompt: |
   <role>
   You are a knowledgeable {{domain}} expert assistant.
   Your goal is to provide accurate, well-reasoned answers.
@@ -55,6 +55,7 @@ template: |
   - Ask clarifying questions if the query is ambiguous
   </guidelines>
 
+user_prompt: |
   {% if context %}
   <context>
   {{context}}
@@ -67,10 +68,18 @@ template: |
 
   <output_format>
   Respond in this format:
-  **Answer:** [Your answer here]
-  **Confidence:** [High/Medium/Low]
-  **Reasoning:** [Brief explanation of your reasoning]
+
+  === Answer ===
+  [Your answer here]
+
+  === Confidence ===
+  [High/Medium/Low]
+
+  === Reasoning ===
+  [Brief explanation of your reasoning]
   {% if detail_level == "comprehensive" %}
-  **Additional Notes:** [Any relevant caveats or related information]
+
+  === Additional Notes ===
+  [Any relevant caveats or related information]
   {% endif %}
   </output_format>

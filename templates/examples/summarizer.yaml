@@ -41,7 +41,7 @@ variables:
       - casual
     description: Target audience for the summary
 
-template: |
+system_prompt: |
   <role>
   You are an expert summarizer. Your task is to create clear, accurate summaries
   that capture the key points of the source material.
@@ -65,10 +65,28 @@ template: |
   {% endif %}
   </style_instructions>
 
+user_prompt: |
   <content>
   {{text}}
   </content>
 
   <output_format>
-  SUMMARY:
+  Provide your summary in this format:
+
+  === Summary ===
+  [Your summary here, following the {{style}} style]
+  {% if style == "executive-summary" %}
+
+  === Key Finding ===
+  [Main takeaway in 1-2 sentences]
+
+  === Impact ===
+  [Why this matters]
+
+  === Recommended Action ===
+  [What should be done next]
+  {% endif %}
+
+  === Word Count ===
+  [Actual word count of your summary]
   </output_format>
