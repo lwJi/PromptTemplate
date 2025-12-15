@@ -651,5 +651,262 @@ def new_template(name: str, output: str | None) -> None:
         console.print(f"[yellow]⚠ Could not validate template: {e}[/yellow]")
 
 
+@cli.command("analyze")
+@click.argument("name")
+@click.option("--model", "-m", multiple=True, help="Target model(s) to check fit")
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON")
+@click.option("--verbose", "-v", is_flag=True, help="Show detailed analysis")
+def analyze_template(
+    name: str,
+    model: tuple[str, ...],
+    as_json: bool,
+    verbose: bool,
+) -> None:
+    """Analyze template token usage and structure.
+
+    Estimates token counts, checks model fit, and provides recommendations.
+
+    Examples:
+
+        prompt analyze summarizer
+
+        prompt analyze summarizer -m gpt-4 -m claude-3-sonnet
+
+        prompt analyze summarizer --verbose --json
+    """
+    from .analyzer import TemplateAnalyzer
+
+    registry = get_registry()
+
+    try:
+        template = registry.load(name)
+    except TemplateError as e:
+        handle_template_error(e)
+
+    analyzer = TemplateAnalyzer()
+    target_models = list(model) if model else None
+    result = analyzer.analyze(template.config, target_models=target_models)
+
+    if as_json:
+        output = {
+            "template": result.template_name,
+            "tokens": {
+                "static": result.token_estimate.total_static_tokens,
+                "estimated_total": result.token_estimate.estimated_total,
+                "system_prompt": result.token_estimate.system_prompt_tokens,
+                "user_prompt": result.token_estimate.user_prompt_tokens,
+                "variables": result.token_estimate.estimated_variable_tokens,
+            },
+            "model_fit": result.token_estimate.model_fit,
+            "structure": {
+                "has_system_prompt": result.structural_analysis.has_system_prompt,
+                "has_user_prompt": result.structural_analysis.has_user_prompt,
+                "uses_conditionals": result.structural_analysis.uses_conditionals,
+                "uses_loops": result.structural_analysis.uses_loops,
+                "nesting_depth": result.structural_analysis.nesting_depth,
+                "section_count": result.structural_analysis.section_count,
+            },
+            "recommendations": result.recommendations,
+        }
+        console.print(json.dumps(output, indent=2))
+    else:
+        # Rich formatted output
+        console.print(Panel(f"[bold]Analysis: {result.template_name}[/bold]"))
+
+        # Token table
+        token_table = Table(title="Token Estimates")
+        token_table.add_column("Component", style="cyan")
+        token_table.add_column("Tokens", justify="right")
+
+        if result.token_estimate.system_prompt_tokens:
+            token_table.add_row(
+                "System Prompt", str(result.token_estimate.system_prompt_tokens)
+            )
+        if result.token_estimate.user_prompt_tokens:
+            token_table.add_row(
+                "User Prompt", str(result.token_estimate.user_prompt_tokens)
+            )
+        if result.token_estimate.template_tokens:
+            token_table.add_row("Template", str(result.token_estimate.template_tokens))
+
+        token_table.add_row(
+            "Static Total",
+            str(result.token_estimate.total_static_tokens),
+            style="bold",
+        )
+        token_table.add_row(
+            "Estimated Total",
+            str(result.token_estimate.estimated_total),
+            style="bold green",
+        )
+
+        console.print(token_table)
+
+        # Variable estimates
+        if verbose and result.token_estimate.estimated_variable_tokens:
+            var_table = Table(title="Variable Token Estimates")
+            var_table.add_column("Variable")
+            var_table.add_column("Est. Tokens", justify="right")
+
+            var_tokens = result.token_estimate.estimated_variable_tokens
+            for var_name, tokens in var_tokens.items():
+                var_table.add_row(var_name, str(tokens))
+
+            console.print(var_table)
+
+        # Model fit
+        if result.token_estimate.model_fit:
+            console.print("\n[bold]Model Compatibility:[/bold]")
+            for model_name, fits in result.token_estimate.model_fit.items():
+                if fits:
+                    status = "[green]✓ Fits[/green]"
+                else:
+                    status = "[red]✗ May exceed context[/red]"
+                console.print(f"  {model_name}: {status}")
+
+        # Structure info
+        if verbose:
+            console.print("\n[bold]Structure:[/bold]")
+            s = result.structural_analysis
+            has_split = "Yes" if s.has_system_prompt or s.has_user_prompt else "No"
+            console.print(f"  System/User Split: {has_split}")
+            cond = "Yes" if s.uses_conditionals else "No"
+            console.print(f"  Uses Conditionals: {cond}")
+            console.print(f"  Uses Loops: {'Yes' if s.uses_loops else 'No'}")
+            console.print(f"  Nesting Depth: {s.nesting_depth}")
+            console.print(f"  Section Count: {s.section_count}")
+
+        # Recommendations
+        if result.recommendations:
+            console.print("\n[bold yellow]Recommendations:[/bold yellow]")
+            for rec in result.recommendations:
+                console.print(f"  [yellow]•[/yellow] {rec}")
+
+
+@cli.command("quality")
+@click.argument("name")
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON")
+@click.option("--brief", is_flag=True, help="Show only overall score")
+def quality_report(name: str, as_json: bool, brief: bool) -> None:
+    """Generate quality report for a template.
+
+    Scores templates on clarity, consistency, completeness, efficiency, and structure.
+
+    Examples:
+
+        prompt quality summarizer
+
+        prompt quality summarizer --brief
+
+        prompt quality summarizer --json
+    """
+    from .quality import QualityScorer
+
+    registry = get_registry()
+
+    try:
+        template = registry.load(name)
+    except TemplateError as e:
+        handle_template_error(e)
+
+    scorer = QualityScorer()
+    report = scorer.score(template.config)
+
+    if as_json:
+        output = {
+            "template": report.template_name,
+            "overall_score": report.overall_score,
+            "grade": report.grade,
+            "production_ready": report.is_production_ready,
+            "dimensions": {
+                dim.value: {
+                    "score": score.score,
+                    "details": score.details,
+                    "suggestions": score.suggestions,
+                }
+                for dim, score in report.dimensions.items()
+            },
+            "summary": report.summary,
+            "top_suggestions": report.top_suggestions,
+        }
+        console.print(json.dumps(output, indent=2))
+    elif brief:
+        grade_colors = {
+            "A": "green",
+            "B": "blue",
+            "C": "yellow",
+            "D": "red",
+            "F": "red",
+        }
+        grade_color = grade_colors.get(report.grade, "white")
+        score_str = f"{report.overall_score}/100 ({report.grade})"
+        console.print(
+            f"{report.template_name}: [{grade_color}]{score_str}[/{grade_color}]"
+        )
+    else:
+        # Full report
+        grade_colors = {
+            "A": "green",
+            "B": "blue",
+            "C": "yellow",
+            "D": "red",
+            "F": "red",
+        }
+        grade_color = grade_colors.get(report.grade, "white")
+
+        score_line = (
+            f"Overall Score: [{grade_color}]{report.overall_score}/100"
+            f"[/{grade_color}] (Grade: [{grade_color}]{report.grade}"
+            f"[/{grade_color}])"
+        )
+        panel_content = (
+            f"[bold]Quality Report: {report.template_name}[/bold]\n\n"
+            f"{score_line}\n\n{report.summary}"
+        )
+        console.print(Panel(panel_content, title="Quality Assessment"))
+
+        # Dimension scores
+        dim_table = Table(title="Dimension Scores")
+        dim_table.add_column("Dimension", style="cyan")
+        dim_table.add_column("Score", justify="right")
+        dim_table.add_column("Weight", justify="right", style="dim")
+        dim_table.add_column("Key Finding")
+
+        for dim, score in report.dimensions.items():
+            # Color based on score
+            if score.score >= 80:
+                score_style = "green"
+            elif score.score >= 60:
+                score_style = "yellow"
+            else:
+                score_style = "red"
+
+            finding = score.details[0] if score.details else "-"
+            if len(finding) > 40:
+                finding = finding[:40] + "..."
+            dim_table.add_row(
+                dim.value.title(),
+                f"[{score_style}]{score.score}[/{score_style}]",
+                f"{score.weight:.0%}",
+                finding,
+            )
+
+        console.print(dim_table)
+
+        # Top suggestions
+        if report.top_suggestions:
+            console.print("\n[bold]Top Suggestions:[/bold]")
+            for i, suggestion in enumerate(report.top_suggestions, 1):
+                console.print(f"  {i}. {suggestion}")
+
+        # Production readiness
+        if report.is_production_ready:
+            console.print("\n[green]✓ Template is production-ready[/green]")
+        else:
+            console.print(
+                "\n[yellow]⚠ Template needs improvement before production use[/yellow]"
+            )
+
+
 if __name__ == "__main__":
     cli()

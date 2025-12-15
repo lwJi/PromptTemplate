@@ -41,6 +41,13 @@ dev = [
     "mypy>=1.0.0",
     "types-PyYAML>=6.0.0",
 ]
+analysis = [
+    "tiktoken>=0.5.0",
+]
+all = [
+    "tiktoken>=0.5.0",
+    "pyperclip>=1.8.0",
+]
 
 [project.scripts]
 prompt = "prompt_template.cli:cli"

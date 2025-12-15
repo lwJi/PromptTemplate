@@ -152,3 +152,74 @@ class TemplateConfig(BaseModel):
     def get_optional_variables(self) -> list[VariableConfig]:
         """Get all optional variables."""
         return [v for v in self.variables if not v.required]
+
+
+# =============================================================================
+# Analysis Models (for token counting and template analysis)
+# =============================================================================
+
+
+class TokenEstimate(BaseModel):
+    """Token count estimation result."""
+
+    template_tokens: int = Field(default=0, description="Tokens in raw template")
+    system_prompt_tokens: int | None = Field(
+        default=None, description="Tokens in system prompt"
+    )
+    user_prompt_tokens: int | None = Field(
+        default=None, description="Tokens in user prompt"
+    )
+    estimated_variable_tokens: dict[str, int] = Field(
+        default_factory=dict,
+        description="Estimated tokens per variable",
+    )
+    total_static_tokens: int = Field(
+        default=0, description="Total tokens excluding variable content"
+    )
+    estimated_total: int = Field(
+        default=0, description="Estimated total with variable placeholders"
+    )
+    model_fit: dict[str, bool] = Field(
+        default_factory=dict,
+        description="Whether template fits in each model's context",
+    )
+
+
+class VariableAnalysis(BaseModel):
+    """Analysis of a single variable."""
+
+    name: str = Field(..., description="Variable name")
+    type: str = Field(..., description="Variable type")
+    estimated_tokens: int = Field(default=0, description="Estimated token count")
+    usage_count: int = Field(default=0, description="How many times used in template")
+    in_system_prompt: bool = Field(
+        default=False, description="Whether used in system prompt"
+    )
+    in_user_prompt: bool = Field(
+        default=False, description="Whether used in user prompt"
+    )
+    description_quality: str = Field(
+        default="missing", description="Quality: good, minimal, missing"
+    )
+
+
+class StructuralAnalysis(BaseModel):
+    """Structural analysis of template."""
+
+    has_system_prompt: bool = Field(default=False)
+    has_user_prompt: bool = Field(default=False)
+    has_template: bool = Field(default=False)
+    uses_conditionals: bool = Field(default=False)
+    uses_loops: bool = Field(default=False)
+    nesting_depth: int = Field(default=0)
+    section_count: int = Field(default=0)
+
+
+class AnalysisResult(BaseModel):
+    """Complete analysis result including tokens."""
+
+    template_name: str = Field(..., description="Name of the analyzed template")
+    token_estimate: TokenEstimate = Field(default_factory=TokenEstimate)
+    variable_analysis: dict[str, VariableAnalysis] = Field(default_factory=dict)
+    structural_analysis: StructuralAnalysis = Field(default_factory=StructuralAnalysis)
+    recommendations: list[str] = Field(default_factory=list)

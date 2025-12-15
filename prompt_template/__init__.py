@@ -1,8 +1,25 @@
 """Prompt Template - A tool for managing and rendering LLM prompts."""
 
-from .models import ModelConfig, TemplateConfig, VariableConfig, VariableType
+# Analysis imports
+from .analyzer import TemplateAnalyzer, TokenCounter
+from .models import (
+    AnalysisResult,
+    ModelConfig,
+    StructuralAnalysis,
+    TemplateConfig,
+    TokenEstimate,
+    VariableAnalysis,
+    VariableConfig,
+    VariableType,
+)
+
+# Quality scoring imports
+from .quality import DimensionScore, QualityDimension, QualityReport, QualityScorer
 from .registry import TemplateInfo, TemplateRegistry
 from .renderer import TemplateRenderer
+
+# Semantic validation imports
+from .semantic import SemanticIssue, SemanticValidationResult, SemanticValidator
 from .template import (
     Template,
     TemplateError,
@@ -27,9 +44,26 @@ __all__ = [
     "ModelConfig",
     "TemplateInfo",
     "ValidationResult",
+    # Analysis models
+    "TokenEstimate",
+    "VariableAnalysis",
+    "StructuralAnalysis",
+    "AnalysisResult",
     # Exceptions
     "TemplateError",
     "TemplateNotFoundError",
     "TemplateValidationError",
     "TemplateRenderError",
+    # Analysis
+    "TemplateAnalyzer",
+    "TokenCounter",
+    # Semantic validation
+    "SemanticValidator",
+    "SemanticValidationResult",
+    "SemanticIssue",
+    # Quality scoring
+    "QualityScorer",
+    "QualityReport",
+    "QualityDimension",
+    "DimensionScore",
 ]
