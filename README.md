@@ -15,11 +15,17 @@ A prompt template tool for managing and rendering LLM prompts with Jinja2 suppor
 - **Rich CLI** - Syntax highlighting and interactive mode
 - **Multiple Output Formats** - Raw, JSON, Markdown, Chat API, shell env
 - **LLM-Ready** - System/user prompt separation for chat APIs
+- **Token Analysis** - Estimate token usage with model fit checking
+- **Quality Scoring** - A-F grades with actionable improvement suggestions
+- **Semantic Validation** - Check role clarity, instruction quality, and coherence
 
 ## Installation
 
 ```bash
 pip install -e .
+
+# With tiktoken for accurate token counting
+pip install -e ".[analysis]"
 ```
 
 ## Quick Start
@@ -82,6 +88,8 @@ template: |
 | `prompt show <name>` | Show template details |
 | `prompt run <name>` | Render a template |
 | `prompt validate <file>` | Validate a template file |
+| `prompt analyze <name>` | Analyze token usage and structure |
+| `prompt quality <name>` | Score template quality (A-F grade) |
 | `prompt init` | Initialize templates directory |
 | `prompt new <name>` | Create a new template |
 
@@ -190,6 +198,45 @@ template = registry.load("summarizer")
 | `boolean` | `bool` |
 | `list` | `list` |
 | `object` | `dict` |
+
+## Template Analysis
+
+Analyze token usage and check model compatibility:
+
+```bash
+# Analyze a template
+prompt analyze summarizer
+
+# JSON output for automation
+prompt analyze summarizer --json
+```
+
+Analysis includes:
+- Token counts (static and estimated variable tokens)
+- Model fit checking (GPT-4, GPT-4-turbo, Claude-3, etc.)
+- Structural analysis (conditionals, loops, sections)
+- Variable usage tracking
+
+## Quality Scoring
+
+Score templates and get improvement suggestions:
+
+```bash
+# Score a template
+prompt quality code-reviewer
+
+# JSON output
+prompt quality code-reviewer --json
+```
+
+Quality dimensions:
+- **Clarity** (25%) - Role definition, task instructions, output format
+- **Completeness** (25%) - Description, variable docs, metadata
+- **Consistency** (20%) - Naming conventions, style uniformity
+- **Efficiency** (15%) - Token economy, no redundancy
+- **Structure** (15%) - Prompt organization, separation of concerns
+
+Grades: A (90+), B (80+), C (70+), D (60+), F (<60). Templates scoring 70+ are considered production-ready.
 
 ## Development
 

@@ -24,6 +24,10 @@ prompt run <name> -v "var=@file.txt"      # Load from file
 prompt run <name> -v "var=@./src/*.py"    # Glob pattern
 prompt run <name> -f raw                  # Output formats: panel, raw, json, markdown, chat-api, env
 prompt run <name> -f json -o out.json     # Write to file
+prompt analyze <name>                     # Token analysis and structure
+prompt analyze <name> --json              # JSON output
+prompt quality <name>                     # Quality scoring (A-F grade)
+prompt quality <name> --json              # JSON output
 ```
 
 ## Architecture
@@ -39,12 +43,15 @@ Jinja2 templating + Pydantic validation.
 ### Components
 
 - **`template.py`**: `Template` class - `from_file()`, `from_string()`, `from_dict()`, `render()`, `validate()`
-- **`models.py`**: Pydantic models - `TemplateConfig`, `VariableConfig`, `VariableType`
+- **`models.py`**: Pydantic models - `TemplateConfig`, `VariableConfig`, `VariableType`, `TokenEstimate`, `AnalysisResult`
 - **`renderer.py`**: `TemplateRenderer` - Jinja2 wrapper
 - **`validator.py`**: `TemplateValidator` - syntax, types, unused/undeclared vars
 - **`registry.py`**: `TemplateRegistry` - discovers from `./templates`, `./prompts`, `~/.prompt_templates`
-- **`cli.py`**: Click CLI with Rich - `list`, `show`, `run`, `validate`, `init`, `new`; file input via `@` prefix; output formats via `-f`
+- **`cli.py`**: Click CLI with Rich - `list`, `show`, `run`, `validate`, `analyze`, `quality`, `init`, `new`
 - **`formatters.py`**: Output formatters - `RawFormatter`, `JSONFormatter`, `MarkdownFormatter`, `ChatAPIFormatter`, `EnvFormatter`
+- **`analyzer.py`**: `TemplateAnalyzer`, `TokenCounter` - token counting, model fit, structural analysis
+- **`semantic.py`**: `SemanticValidator` - role clarity, instruction clarity, context coherence checks
+- **`quality.py`**: `QualityScorer` - A-F grading across clarity, completeness, consistency, efficiency, structure
 
 ### YAML Schema
 ```yaml
