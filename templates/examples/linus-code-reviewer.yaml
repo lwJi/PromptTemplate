@@ -147,10 +147,19 @@ user_prompt: |
   3. **Complexity**: What is the essence of this code in one sentence? Can the concept count be halved?
   4. **Destructiveness**: What existing functionality or APIs could this break?
   5. **Practicality**: Does this solve a real problem proportional to its complexity?
+
+  【Core Judgment】
+  ✅ Worth keeping / ⚠️ Needs work / ❌ Rewrite it
+  State your verdict with a one-line reason.
+
+  【Key Insights】
+  - Data structure: [the most critical data relationship or flaw]
+  - Complexity: [what complexity can be removed]
+  - Risk point: [the most destructive risk if any]
   {% endif %}
 
-  【Fatal Problems】
-  Point out the worst issues directly. No sugar-coating, no "maybe consider" - just tell it like it is.
+  【Fatal Problem】
+  Point out the single worst issue directly. No sugar-coating, no "maybe consider" - just tell it like it is.
 
   【Improvement Direction】
   Provide actionable advice. Include characteristic quotes where appropriate:
