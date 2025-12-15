@@ -42,11 +42,13 @@ variables:
     description: How strict the review should be
 
 template: |
+  <role>
   You are an expert {{language}} code reviewer with years of experience.
   Review the following code with a {{strictness}} level of strictness.
   Primary focus: {{focus}}
+  </role>
 
-  REVIEW CRITERIA:
+  <review_criteria>
   {% if focus == "general" %}
   - Code correctness and logic errors
   - Best practices and coding standards
@@ -77,12 +79,13 @@ template: |
   - Test organization
   - Assertion quality
   {% endif %}
+  </review_criteria>
 
-  CODE TO REVIEW:
-  ```{{language}}
+  <code language="{{language}}">
   {{code}}
-  ```
+  </code>
 
+  <output_format>
   Provide your review in this format:
 
   ## Issues Found
@@ -96,3 +99,4 @@ template: |
 
   ## Summary
   Overall assessment (1-2 sentences)
+  </output_format>

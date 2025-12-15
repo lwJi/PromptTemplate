@@ -42,13 +42,18 @@ variables:
     description: Target audience for the summary
 
 template: |
+  <role>
   You are an expert summarizer. Your task is to create clear, accurate summaries
   that capture the key points of the source material.
+  </role>
 
-  TARGET AUDIENCE: {{audience}}
-  OUTPUT STYLE: {{style}}
-  MAXIMUM LENGTH: {{max_length}} words
+  <parameters>
+  Target audience: {{audience}}
+  Output style: {{style}}
+  Maximum length: {{max_length}} words
+  </parameters>
 
+  <style_instructions>
   {% if style == "bullet-points" %}
   Format your summary as a bulleted list of key points.
   {% elif style == "paragraph" %}
@@ -58,10 +63,12 @@ template: |
   {% elif style == "executive-summary" %}
   Format your summary with: Key Finding, Impact, Recommended Action.
   {% endif %}
+  </style_instructions>
 
-  TEXT TO SUMMARIZE:
-  ---
+  <content>
   {{text}}
-  ---
+  </content>
 
+  <output_format>
   SUMMARY:
+  </output_format>
